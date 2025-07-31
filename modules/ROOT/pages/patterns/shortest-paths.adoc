@@ -515,6 +515,9 @@ ORDER BY pathLength, destination
 This section describes the operators used when planning shortest path queries.
 For readers not familiar with Cypher execution plans and operators, it is recommended to first read the section xref:planning-and-tuning/execution-plans.adoc[].
 
+
+=== Shortest path query operators
+
 There are two operators used to plan `SHORTEST` queries:
 
 * xref:planning-and-tuning/operators/operators-detail.adoc#query-plan-stateful-shortest-path-all[`StatefulShortestPath(All)`] - uses a unidirectional breadth-first search algorithm to find shortest paths from a previously matched start node to an end node that has not yet been matched.
@@ -559,6 +562,10 @@ RETURN p
 ----
 
 However, the heuristic to favor `StatefulShortestPath(All)` can lead to worse query performance.
+
+
+=== Use `CALL` to guarantee SSP(All)
+
 To have the planner choose the `StatefulShortestPath(Into)` instead, rewrite the query using a xref:subqueries/call-subquery.adoc[`CALL` subquery], which will execute once for each incoming row.
 
 For example, in the below query, using a `CALL` subquery ensures that the planner binds `a` and `b` to exactly one `Station` node respectively for each executed row, and this forces it to use `StatefulShortestPath(Into)` for each invocation of the `CALL` subquery, since a precondition of using this operator is that both boundary nodes match exactly one node each.
@@ -603,6 +610,16 @@ RETURN p
 +-----------------------------+----+----------------------------------------------------------------------------------+----------------+------+---------+----------------+------------------------+-----------+---------------------+
 ----
 
+=== Use an index to guarantee SSP(All)
+
+// integrate the following admonition and expand
+
 [TIP]
 Sometimes the planner cannot make reliable estimations about how many nodes a pattern node will match.
 Consider using a xref:constraints/managing-constraints.adoc#create-property-uniqueness-constraints[property uniqueness constraint] where applicable to help the planner get more reliable estimates.
+
+// add index for planner to prove that endpoint cardinality is 1
+
+// note that SHORTEST 1 for simple patterns won't get rewritten to legacy shortest if it has an undirected relationship pattern  and a lower bound of 1 or more
+
+// note: GPM shortest + single rel. pattern, undirected and lower bound of reps > 0 -> normally rewritten to legacy shortest, but in this case, much worse performance (why?)
